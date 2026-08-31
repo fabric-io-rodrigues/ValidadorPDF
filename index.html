@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ValidadorPDF — Assinaturas Digitais em PDF</title>
+  <meta name="description" content="Verifica assinaturas digitais ICP-Brasil, Gov.br e de plataformas em PDF, no próprio dispositivo. Ferramenta independente, de código aberto, sem vínculo com órgão público.">
+
+  <!--
+    Politica de seguranca: connect-src 'none' bloqueia fetch, XHR e WebSocket;
+    form-action 'none' impede envio por formulario; default-src 'self' impede
+    carregar recurso externo. Nao adicione 'unsafe-inline' nem CDN aqui.
+
+    Nota sobre o service worker: ele NAO herda esta politica - a CSP dele vem
+    dos cabecalhos HTTP do proprio sw.js, que nao existem. Por isso o sw.js se
+    restringe por conta propria a mesma origem e a uma lista fixa de URLs.
+    Ver README.md, secao "Garantia de que nada sai da maquina".
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self';
+    worker-src 'self' blob:;
+    style-src 'self';
+    img-src 'self' data: blob:;
+    manifest-src 'self';
+    connect-src 'none';
+    form-action 'none';
+    base-uri 'none';
+    object-src 'none';
+    frame-src 'none';
+  ">
+
+  <link rel="stylesheet" href="css/validador.css">
+
+  <!-- PWA. Caminhos relativos: no GitHub Pages o site fica num subcaminho. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#10395f" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11151a" media="(prefers-color-scheme: dark)">
+
+  <!--
+    O iOS ignora boa parte do manifest: precisa das tags proprias. O icone dele
+    e opaco de proposito - o Safari nao aplica mascara e fundo transparente
+    sai preto.
+  -->
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-title" content="ValidadorPDF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<header class="v-topo">
+  <div class="v-topo-inner">
+    <h1>ValidadorPDF</h1>
+
+    <!--
+      Botoes so de icone. Cada um leva `aria-label` e `title`: sem texto
+      visivel, e o que da nome ao controle para leitor de tela e para o
+      tooltip do desktop.
+    -->
+    <div class="v-acoes" id="acoes" hidden>
+      <button type="button" id="btnOutro" class="v-icone"
+              aria-label="Abrir outro PDF" title="Abrir outro PDF">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 3 14 8 19 8"></polyline>
+          <line x1="12" y1="18" x2="12" y2="12"></line>
+          <polyline points="9.5 14.5 12 12 14.5 14.5"></polyline>
+        </svg>
+      </button>
+
+      <button type="button" id="btnDump" class="v-icone secundario"
+              aria-label="Baixar todos os dados extraídos, em JSON"
+              title="Baixar todos os dados extraídos, em JSON">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </button>
+
+      <button type="button" id="btnImprimir" class="v-icone secundario"
+              aria-label="Imprimir ou salvar em PDF" title="Imprimir ou salvar em PDF">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 3 18 3 18 9"></polyline>
+          <path d="M6 18H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1"></path>
+          <rect x="6" y="14" width="12" height="7" rx="1"></rect>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="v-drop" id="dropZone" tabindex="0" role="button"
+       aria-label="Selecionar arquivo PDF para validar">
+    <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor"
+         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="12" y1="18" x2="12" y2="12"></line>
+      <polyline points="9 15 12 12 15 15"></polyline>
+    </svg>
+    <p class="v-drop-titulo">Toque para escolher um PDF</p>
+    <p class="v-drop-nota">ou arraste o arquivo para cá</p>
+    <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple hidden>
+  </div>
+
+  <p class="v-progresso" id="progresso" role="status" aria-live="polite" hidden>
+    <span class="v-spinner" aria-hidden="true"></span>
+    <span id="progressoTexto"></span>
+  </p>
+
+  <div id="saida"></div>
+</main>
+
+<div class="v-cortina" id="cortina" hidden aria-hidden="true">
+  <div class="v-cortina-caixa">Solte o PDF para validar</div>
+</div>
+
+<script type="module" src="js/validador.js"></script>
+</body>
+</html>

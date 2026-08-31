@@ -1,0 +1,12 @@
+# PDFs de desenvolvimento: nunca vao para o repositorio. Os arquivos usados
+# para testar carregam CPF, data de nascimento e e-mail de pessoas reais.
+*.pdf
+
+# Saidas do proprio validador, que carregam os mesmos dados.
+*.dump.json
+*-relatorio-assinaturas.json
+
+# Lixo de sistema
+.DS_Store
+Thumbs.db
+desktop.ini

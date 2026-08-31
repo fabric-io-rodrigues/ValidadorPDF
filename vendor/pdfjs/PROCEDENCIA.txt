@@ -1,0 +1,44 @@
+pdfjs-dist 5.7.284 (Apache-2.0) - https://github.com/mozilla/pdf.js
+
+Dois arquivos do pacote, com o CONTEUDO inalterado e o NOME trocado:
+
+  package/build/pdf.min.mjs         ->  pdf.module.js          425 KB
+  package/build/pdf.worker.min.mjs  ->  pdf.worker.module.js  1203 KB
+
+POR QUE RENOMEAR .mjs -> .js
+O Windows registra .mjs como text/plain (HKLM\SOFTWARE\Classes\.mjs), e o
+`python -m http.server` le essa associacao. O navegador entao recusa o modulo
+por strict MIME checking:
+
+  Failed to load module script: Expected a JavaScript module script but the
+  server responded with a MIME type of "text/plain".
+
+Isso quebrava o preview inteiro, e sem sintoma visivel porque o erro era
+engolido. Com .js o problema desaparece em qualquer servidor - Python no
+Windows, GitHub Pages, IIS, S3 - sem depender de configuracao.
+
+ATENCAO ao atualizar: nao troque pelos arquivos pdf.min.js / pdf.worker.min.js
+do pacote. Esses sao o build "legacy" em UMD, nao modulos ES, e nao funcionam
+com `import()`. Renomeie as copias .mjs, como foi feito aqui.
+
+NAO INCLUIDOS DE PROPOSITO
+  pdf.sandbox.min.mjs  executa o JavaScript embutido no PDF. Sem este arquivo
+                       no repositorio, a pagina nao tem como rodar script de
+                       documento. E a garantia real - as opcoes
+                       `enableScripting` e `isEvalSupported` NAO existem em
+                       getDocument no PDF.js 5 e nao garantem nada.
+  standard_fonts/      fontes padrao (~1,5 MB). Sem elas, um PDF que nao
+                       embuta a fonte usa substituta no preview.
+  wasm/                decodificadores JBIG2/OpenJPEG. Sem eles, imagens
+                       nesses codecs nao aparecem no preview. Se algum dia
+                       forem incluidos, a CSP precisara de
+                       script-src 'wasm-unsafe-eval'.
+  cmaps/               mapas de caracteres CJK.
+
+PARA ATUALIZAR
+  npm pack pdfjs-dist@5
+  tar xzf pdfjs-dist-*.tgz
+  cp package/build/pdf.min.mjs        vendor/pdfjs/pdf.module.js
+  cp package/build/pdf.worker.min.mjs vendor/pdfjs/pdf.worker.module.js
+  cp package/LICENSE                  vendor/pdfjs/
+  node tests/preview-api-check.mjs

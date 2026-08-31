@@ -1,0 +1,601 @@
+/* validador.css - Estilo da pagina de uso.
+   Prefixo `v-` em tudo, para nao colidir com o app.css da pagina de debug. */
+
+:root {
+  --fundo: #f1f4f7;
+  --superficie: #ffffff;
+  --superficie-2: #f7f9fb;
+  --borda: #dde4ea;
+  --borda-forte: #b9c5d1;
+  --texto: #16202a;
+  --texto-fraco: #5c6874;
+  --primaria: #10395f;
+  --primaria-clara: #e8f0f8;
+  --ok: #14663a;
+  --ok-fundo: #e4f3ea;
+  --ok-borda: #94cdac;
+  --erro: #9a1f28;
+  --erro-fundo: #fbe9ea;
+  --erro-borda: #e3a3a8;
+  --atencao: #7a5000;
+  --atencao-fundo: #fdf3e1;
+  --atencao-borda: #e5c687;
+  --raio: 10px;
+  --raio-p: 6px;
+  --sombra: 0 1px 2px rgba(16, 24, 32, 0.05), 0 6px 16px rgba(16, 24, 32, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #11151a;
+    --superficie: #191e25;
+    --superficie-2: #202730;
+    --borda: #2f3841;
+    --borda-forte: #445060;
+    --texto: #e6eaef;
+    --texto-fraco: #98a3af;
+    --primaria: #9bc3e7;
+    --primaria-clara: #1b2632;
+    --ok: #79d097;
+    --ok-fundo: #12281b;
+    --ok-borda: #2a5739;
+    --erro: #f2a1a5;
+    --erro-fundo: #2c1617;
+    --erro-borda: #672e32;
+    --atencao: #e6bc72;
+    --atencao-fundo: #2a2113;
+    --atencao-borda: #5a4620;
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 18px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/*
+ * O atributo `hidden` do HTML esconde via regra do User-Agent
+ * (`[hidden] { display: none }`). Qualquer `display` declarado em folha de
+ * autor VENCE essa regra - a origem do autor tem precedencia sobre a do UA,
+ * antes de qualquer conta de especificidade. Logo, todo elemento com `display`
+ * de autor que o JS esconde com `.hidden = true` precisa da regra abaixo,
+ * senao o `hidden` nao tem efeito nenhum.
+ */
+.v-progresso[hidden] { display: none; }
+.v-acoes[hidden] { display: none; }
+
+body {
+  margin: 0;
+  padding: 0 0 40px;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 0; }
+
+/* ------------------------------------------------------------------ topo */
+
+.v-topo {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+}
+
+/*
+ * `nowrap` e proposital: com os botoes reduzidos a icone, o cabecalho cabe em
+ * uma linha unica ate ~300px de largura. Antes ele quebrava em duas e chegava
+ * a ~139px de altura no celular, comendo quase 30% da tela.
+ */
+.v-topo-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 9px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-height: 52px;
+}
+
+.v-topo h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--primaria);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- acoes */
+
+.v-acoes { display: flex; gap: 8px; flex: 0 0 auto; }
+
+.v-acoes button {
+  /* 44x44: alvo de toque minimo recomendado. Sem texto, o quadrado inteiro
+     precisa ser clicavel, senao um botao de icone fica impossivel no dedo. */
+  min-height: 44px;
+  min-width: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--primaria);
+  border-radius: var(--raio-p);
+  background: var(--primaria);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.v-icone svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .v-acoes button { color: #11151a; }
+}
+
+.v-acoes button.secundario { background: transparent; color: var(--primaria); }
+.v-acoes button:hover { filter: brightness(1.08); }
+.v-acoes button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ drop */
+
+.v-drop {
+  border: 2px dashed var(--borda-forte);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--primaria);
+  padding: 46px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.v-drop:hover, .v-drop:focus-visible, .v-drop.arrastando {
+  background: var(--primaria-clara);
+  border-color: var(--primaria);
+  border-style: solid;
+  outline: none;
+}
+
+.v-drop[aria-busy='true'] { opacity: 0.55; pointer-events: none; }
+.v-drop-titulo { margin: 12px 0 2px; font-weight: 600; }
+.v-drop-nota { margin: 0; font-size: 0.85rem; color: var(--texto-fraco); }
+
+/* ------------------------------------------------------------- progresso */
+
+.v-progresso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  font-size: 0.9rem;
+}
+
+.v-spinner {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--borda-forte);
+  border-top-color: var(--primaria);
+  border-radius: 50%;
+  display: none;
+}
+
+.v-progresso.ocupado .v-spinner { display: block; animation: v-girar 0.7s linear infinite; }
+
+@keyframes v-girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .v-progresso.ocupado .v-spinner { animation-duration: 2.4s; }
+}
+
+/* ------------------------------------------------------------- relatorio */
+
+.v-container { margin-top: 20px; }
+
+.v-relatorio {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------- cores de estado */
+
+/*
+ * Usadas pelos itens do bloco de assinaturas (`.v-assinatura.v-ok` etc.) e
+ * pelas marcas. A faixa de veredito que existia aqui foi removida: o bloco de
+ * assinaturas e o unico lugar que informa situacao.
+ */
+.v-marca-ok { background: var(--ok); color: var(--ok-fundo); }
+.v-marca-erro { background: var(--erro); color: var(--erro-fundo); }
+.v-marca-atencao { background: var(--atencao); color: var(--atencao-fundo); }
+
+/* ---------------------------------------------------------------- blocos */
+
+.v-bloco { padding: 18px 22px; border-bottom: 1px solid var(--borda); }
+.v-bloco:last-child { border-bottom: none; }
+
+.bloco-titulo {
+  margin: 0 0 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-fraco);
+}
+
+/* -------------------------------------------------------------- documento */
+
+.v-documento { display: flex; gap: 20px; align-items: flex-start; }
+
+.v-preview {
+  flex: 0 0 auto;
+  width: 130px;
+  min-height: 176px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p);
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+
+.v-preview-canvas { display: block; max-width: 100%; height: auto; }
+
+.v-preview-vazio {
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto-fraco);
+}
+
+.v-documento-dados { flex: 1 1 auto; min-width: 0; }
+
+.v-nome-arquivo {
+  margin: 0 0 4px;
+  font-size: 1.02rem;
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.v-fatos {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 7px;
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  color: var(--texto-fraco);
+}
+
+.v-fatos > * + *::before {
+  content: '·';
+  margin-right: 7px;
+  color: var(--borda-forte);
+}
+
+@media (max-width: 560px) {
+  /* Empilhado, o preview ficava encostado a esquerda por causa do
+     `align-items: flex-start` do container. `align-self: center` o centraliza
+     na linha, que e o que faz sentido quando ele e a primeira coisa da tela. */
+  .v-documento { flex-direction: column; align-items: stretch; }
+
+  .v-preview {
+    width: 100%;
+    max-width: 190px;
+    align-self: center;
+  }
+}
+
+/* ----------------------------------------------------------------- grade */
+
+.grade {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) 1fr;
+  gap: 5px 16px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.grade dt { color: var(--texto-fraco); }
+.grade dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 560px) {
+  .grade { grid-template-columns: 1fr; gap: 0; }
+  .grade dt { margin-top: 7px; font-size: 0.8rem; }
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+/* ----------------------------------------------------- metadados extra */
+
+/*
+ * Chave e valor em linhas separadas, e nao numa grade de duas colunas: as
+ * chaves nao padrao do /Info podem ser longas - um rotulo de sensibilidade do
+ * Microsoft Information Protection traz um GUID de 36 caracteres no nome, que
+ * numa coluna de 190px quebraria em quatro linhas.
+ */
+.v-extra { list-style: none; margin: 0; padding: 0; }
+
+.v-extra-item {
+  padding: 6px 0;
+  border-top: 1px solid var(--borda);
+}
+
+.v-extra-item:first-child { border-top: none; padding-top: 0; }
+
+.v-extra-chave {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--texto-fraco);
+  overflow-wrap: anywhere;
+}
+
+.v-extra-valor {
+  display: block;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------- assinaturas */
+
+.v-assinaturas { list-style: none; margin: 0; padding: 0; }
+
+.v-assinatura {
+  border: 1px solid var(--borda);
+  border-left-width: 4px;
+  border-radius: 0 var(--raio-p) var(--raio-p) 0;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--superficie-2);
+}
+
+.v-assinatura:last-child { margin-bottom: 0; }
+.v-assinatura.v-ok { border-left-color: var(--ok); background: var(--superficie-2); }
+.v-assinatura.v-erro { border-left-color: var(--erro); background: var(--erro-fundo); }
+.v-assinatura.v-atencao { border-left-color: var(--atencao); background: var(--atencao-fundo); }
+
+.v-assinatura-cabeca { display: flex; gap: 11px; align-items: flex-start; }
+
+.v-marca {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.v-assinatura-identidade { flex: 1 1 auto; min-width: 0; }
+
+.v-assinatura-nome {
+  margin: 0;
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.v-assinatura-titular { font-weight: 620; }
+
+.v-assinatura-doc {
+  margin-left: 5px;
+  font-weight: 400;
+  color: var(--texto-fraco);
+  white-space: nowrap;
+}
+
+.v-assinatura-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 7px;
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  color: var(--texto-fraco);
+}
+
+/* A data e o dado mais consultado: fica na cor do texto e um passo maior que
+   o resto da linha, que e metadado de apoio. */
+.v-assinatura-data {
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: var(--texto);
+}
+
+/*
+ * Separador: `content: ' · '` num container flex-wrap produz bullet orfao no
+ * inicio da linha quando o item quebra, porque o separador vive DENTRO do item
+ * seguinte e o `white-space: pre` preserva os espacos. Por isso ele so aparece
+ * a partir do segundo item E acompanha o item, com column-gap cuidando do
+ * espacamento. Em tela estreita e desligado (ver secao mobile).
+ */
+.v-assinatura-meta > * + *::before {
+  content: '·';
+  margin-right: 7px;
+  color: var(--borda-forte);
+}
+
+.v-assinatura-problema { margin: 5px 0 0; font-size: 0.87rem; font-weight: 600; }
+.v-texto-erro { color: var(--erro); }
+.v-texto-atencao { color: var(--atencao); }
+.v-texto-ok { color: var(--ok); }
+
+/* -------------------------------------------------------------- detalhes */
+
+.v-detalhes { margin-top: 10px; }
+.v-documento-dados > .v-detalhes { margin-top: 14px; }
+
+/* Sem `width: fit-content`: ele encolhia a area clicavel a largura exata do
+   texto (~105px) e, com 26px de altura, dava menos de um terco do alvo de
+   toque recomendado - justamente no controle que abre os detalhes. */
+.v-detalhes > summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--primaria);
+  padding: 10px 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.v-detalhes > summary:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+.v-detalhes[open] > summary { margin-bottom: 10px; }
+
+.v-sub-titulo {
+  margin: 14px 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--texto-fraco);
+}
+
+/* ---------------------------------------------------------------- cadeia */
+
+.v-cadeia-wrap { margin-bottom: 4px; }
+
+.v-cadeia { list-style: none; margin: 0 0 10px; padding: 0; }
+
+/* `flex-wrap` porque `.v-cadeia-papel` e inencolhivel: sem isso, em 360px
+   sobravam ~90px para o nome da AC e ele quebrava em 3-4 linhas ao lado de um
+   rotulo pendurado. Com wrap, o papel desce para a linha seguinte. */
+.v-cadeia-elo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 3px 0;
+  font-size: 0.86rem;
+}
+
+.v-marca-mini {
+  flex: 0 0 auto;
+  width: 15px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.v-marca-mini.v-marca-ok { background: none; color: var(--ok); }
+.v-marca-mini.v-marca-erro { background: none; color: var(--erro); }
+.v-marca-mini.v-marca-neutro { background: none; color: var(--texto-fraco); }
+
+.v-cadeia-nome { overflow-wrap: anywhere; }
+
+.v-cadeia-papel {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-fraco);
+}
+
+/* -------------------------------------------------------------- cortina */
+
+.v-cortina {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 57, 95, 0.22);
+  backdrop-filter: blur(2px);
+}
+
+.v-cortina[hidden] { display: none; }
+
+.v-cortina-caixa {
+  padding: 22px 34px;
+  border: 3px dashed var(--primaria);
+  border-radius: var(--raio);
+  background: var(--superficie);
+  color: var(--primaria);
+  font-size: 1.08rem;
+  font-weight: 600;
+  box-shadow: var(--sombra);
+}
+
+/* ----------------------------------------------------------------- mobile */
+
+/*
+ * Antes existia um unico breakpoint (560px) cobrindo a grade e o documento.
+ * Abaixo disso o layout atravessava ate 320px sem nenhum ajuste: cabecalho de
+ * ~139px, padding aninhado consumindo 40% da largura e botoes quebrando em
+ * duas fileiras.
+ */
+
+@media (max-width: 700px) {
+  /* Faixa 561-700px (tablet em retrato, celular em paisagem): a coluna de
+     rotulos de 190px fixos deixava o valor com pouco espaco. */
+  .grade { grid-template-columns: minmax(110px, 150px) 1fr; }
+}
+
+@media (max-width: 480px) {
+  main { padding: 16px 12px 0; }
+
+  .v-topo-inner {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .v-topo h1 { font-size: 0.95rem; }
+
+  .v-bloco { padding: 14px; }
+  .v-assinatura { padding: 11px 10px; }
+  .v-drop { padding: 34px 16px; }
+
+  /* Sem o separador: em linha quebrada ele viraria um bullet orfao no inicio
+     da linha de baixo. O column-gap ja separa. */
+  .v-fatos > * + *::before,
+  .v-assinatura-meta > * + *::before { content: none; margin-right: 0; }
+
+  .v-fatos { column-gap: 10px; }
+  .v-assinatura-meta { column-gap: 10px; }
+
+  /* O documento entre parenteses ganha a linha de baixo quando nao cabe. */
+  .v-assinatura-doc { margin-left: 0; display: block; }
+}
+
+@media (max-width: 360px) {
+  /* Nomes de AC e o SHA-256 precisam de todo o espaco disponivel. */
+  .v-bloco { padding: 12px 10px; }
+  .v-assinatura { padding: 10px 8px; }
+  .v-cadeia-papel { flex-basis: 100%; }
+}
+
+/* ------------------------------------------------------------ impressao */
+
+@media print {
+  body { background: #fff; color: #000; padding: 0; font-size: 10.5pt; }
+  .v-drop, .v-acoes, .v-progresso, .v-cortina { display: none; }
+  .v-topo { border-bottom: 2px solid #000; }
+  .v-topo-inner, main { max-width: none; padding-left: 0; padding-right: 0; }
+  .v-relatorio { box-shadow: none; border-color: #888; page-break-inside: avoid; }
+  .v-assinatura { page-break-inside: avoid; }
+
+  /* No papel os detalhes aparecem abertos. */
+  .v-detalhes > summary { display: none; }
+  .v-detalhes:not([open]) > *:not(summary) { display: block; }
+
+  .v-assinatura {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
