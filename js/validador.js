@@ -96,7 +96,7 @@ dropZone.addEventListener('dragover', (e) => {
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('arrastando'));
 
 fileInput.addEventListener('change', (e) => {
-  const arquivos = e.target.files;
+  const arquivos = [...e.target.files];
   fileInput.value = '';
   processar(arquivos);
 });
@@ -153,6 +153,8 @@ async function processar(fileList) {
 
   const arquivos = [...fileList];
 
+  // Lista vazia aqui significa cancelamento no seletor. Sair em silencio e o
+  // certo - nao houve escolha para reportar.
   if (arquivos.length === 0) return;
 
   ocupado = true;

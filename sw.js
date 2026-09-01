@@ -31,7 +31,7 @@
  * velha indefinidamente - e o erro classico de PWA. Nao basta mudar o conteudo
  * do arquivo, tem de mudar esta string.
  */
-const VERSAO = 'validadorpdf-v3';
+const VERSAO = 'validadorpdf-v4';
 const CACHE_APP = `${VERSAO}-app`;
 const CACHE_PREVIEW = `${VERSAO}-preview`;
 
