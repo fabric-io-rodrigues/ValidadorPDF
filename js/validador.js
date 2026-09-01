@@ -151,14 +151,9 @@ function temArquivo(evento) {
 async function processar(fileList) {
   if (ocupado) return;
 
-  const arquivos = [...fileList].filter(
-    (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
-  );
+  const arquivos = [...fileList];
 
-  if (arquivos.length === 0) {
-    mostrarProgresso('Selecione um arquivo PDF.', false);
-    return;
-  }
+  if (arquivos.length === 0) return;
 
   ocupado = true;
   relatorios = [];

@@ -64,7 +64,7 @@
 
 body {
   margin: 0;
-  padding: 0 0 40px;
+  padding: 0 0 calc(40px + env(safe-area-inset-bottom, 0px));
   background: var(--fundo);
   color: var(--texto);
   font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -84,10 +84,16 @@ main { max-width: 900px; margin: 0 auto; padding: 24px 16px 0; }
  * uma linha unica ate ~300px de largura. Antes ele quebrava em duas e chegava
  * a ~139px de altura no celular, comendo quase 30% da tela.
  */
+/*
+ * `env(safe-area-inset-top)` no cabecalho e `-bottom` no corpo: com a viewport
+ * padrao (sem viewport-fit=cover) esses valores costumam ser zero, mas em PWA
+ * instalado com recorte de tela o navegador os informa. Custa nada e evita o
+ * cabecalho encostar no relogio.
+ */
 .v-topo-inner {
   max-width: 900px;
   margin: 0 auto;
-  padding: 9px 16px;
+  padding: calc(9px + env(safe-area-inset-top, 0px)) 16px 9px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -551,7 +557,7 @@ main { max-width: 900px; margin: 0 auto; padding: 24px 16px 0; }
   main { padding: 16px 12px 0; }
 
   .v-topo-inner {
-    padding: 12px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
     gap: 10px;
   }
 
