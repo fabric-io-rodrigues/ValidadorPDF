@@ -4,7 +4,7 @@ Verifica assinaturas digitais em PDF — ICP-Brasil, Gov.br, Adobe, Docusign,
 Clicksign, D4Sign, ZapSign — **no próprio dispositivo**. O arquivo não sai do
 navegador.
 
-**→ https://fabric-io-rodrigues.github.io/validadorpdf/**
+**→ https://fabric-io-rodrigues.github.io/ValidadorPDF/**
 
 Ferramenta independente, de código aberto, sem vínculo com o ITI nem com
 qualquer órgão público. Não emite parecer: tudo que o relatório afirma vem do
