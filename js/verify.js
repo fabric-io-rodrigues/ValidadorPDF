@@ -33,6 +33,11 @@ async function digestBytes(algorithm, bytes) {
   return new Uint8Array(await subtle.digest(algorithm, bytes));
 }
 
+/** Digest em hexadecimal, com o algoritmo informado. */
+export async function digestHex(algorithm, bytes) {
+  return toHex(await digestBytes(algorithm, bytes));
+}
+
 function bytesEqual(a, b) {
   if (!a || !b || a.length !== b.length) return false;
   let diff = 0;
@@ -168,12 +173,15 @@ export async function fingerprint(bytes) {
   return toHex(new Uint8Array(await subtle.digest('SHA-256', bytes)));
 }
 
-/** Consolida integridade + assinatura num status unico. */
+/** Status unico a partir de integridade e assinatura. */
+export function consolidarStatus(integro, assinaturaOk) {
+  if (assinaturaOk === true && integro !== false) return 'VALIDA';
+  if (assinaturaOk === false || integro === false) return 'INVALIDA';
+  return 'INDETERMINADO';
+}
+
 function finalize(result) {
-  const { integro, assinaturaOk } = result;
-  if (assinaturaOk === true && integro !== false) result.status = 'VALIDA';
-  else if (assinaturaOk === false || integro === false) result.status = 'INVALIDA';
-  else result.status = 'INDETERMINADO';
+  result.status = consolidarStatus(result.integro, result.assinaturaOk);
   return result;
 }
 

@@ -135,6 +135,7 @@ export function scanSignatures(doc) {
         contactInfo: matchString(scope, 'ContactInfo'),
         dictDate: parsePdfDate(matchString(scope, 'M')),
         fieldName: matchString(scope, 'T'),
+        certDer: matchCertDer(scope),
         coverage: analyseCoverage(byteRange, contents, bytes.length, text),
       }),
     );
@@ -321,42 +322,94 @@ export function matchName(scope, key) {
 }
 
 /**
- * String de PDF: literal entre parenteses ou hexadecimal entre <>.
- * Trata escapes de barra invertida e o BOM UTF-16BE.
+ * Le uma string de PDF a partir da abertura ( ou <, devolvendo os bytes crus e
+ * a posicao seguinte. Bytes, e nao texto, porque /Cert carrega DER binario.
  */
-export function matchString(scope, key) {
-  const m = new RegExp(`/${key}\\s*(\\(|<)`).exec(scope);
-  if (!m) return null;
-
-  const open = m.index + m[0].length - 1;
+function lerStringPdf(scope, open) {
   if (scope[open] === '<') {
     const close = scope.indexOf('>', open);
     if (close === -1) return null;
     const hex = scope.slice(open + 1, close).replace(/\s+/g, '');
     if (hex.length === 0 || !/^[0-9a-fA-F]*$/.test(hex)) return null;
-    return decodePdfText(hexToBytes(hex));
+    return { bytes: hexToBytes(hex), fim: close + 1 };
   }
+  if (scope[open] !== '(') return null;
 
-  // Literal: conta parenteses balanceados, respeitando escapes.
+  const SIMPLES = { n: 10, r: 13, t: 9, b: 8, f: 12 };
+  const out = [];
   let depth = 1;
-  let out = '';
-  for (let i = open + 1; i < scope.length; i++) {
+  let i = open + 1;
+
+  for (; i < scope.length; i++) {
     const ch = scope[i];
+
     if (ch === '\\') {
       const next = scope[i + 1];
-      const simple = { n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' };
-      if (next in simple) { out += simple[next]; i++; } else if (/[0-7]/.test(next)) {
+      if (next in SIMPLES) { out.push(SIMPLES[next]); i++; continue; }
+      if (/[0-7]/.test(next)) {
         const oct = /^[0-7]{1,3}/.exec(scope.slice(i + 1))[0];
-        out += String.fromCharCode(parseInt(oct, 8));
+        out.push(parseInt(oct, 8) & 0xff);
         i += oct.length;
-      } else { out += next; i++; }
+        continue;
+      }
+      // Barra seguida de fim de linha e continuacao: nao produz caractere.
+      if (next === '\n') { i++; continue; }
+      if (next === '\r') { i += scope[i + 2] === '\n' ? 2 : 1; continue; }
+      out.push(next.charCodeAt(0) & 0xff);
+      i++;
       continue;
     }
+
     if (ch === '(') depth++;
     if (ch === ')') { depth--; if (depth === 0) break; }
-    out += ch;
+    out.push(ch.charCodeAt(0) & 0xff);
   }
-  return decodePdfText(Uint8Array.from(out, (c) => c.charCodeAt(0) & 0xff));
+
+  return { bytes: Uint8Array.from(out), fim: i + 1 };
+}
+
+/** Bytes crus de uma string de PDF. */
+export function matchStringBytes(scope, key) {
+  const m = new RegExp(`/${key}\\s*(\\(|<)`).exec(scope);
+  if (!m) return null;
+  const r = lerStringPdf(scope, m.index + m[0].length - 1);
+  return r ? r.bytes : null;
+}
+
+/** String de PDF como texto. */
+export function matchString(scope, key) {
+  const bytes = matchStringBytes(scope, key);
+  return bytes ? decodePdfText(bytes) : null;
+}
+
+/**
+ * DER dos certificados em /Cert, usado pelo SubFilter adbe.x509.*. Pode ser uma
+ * string unica ou um array de strings com a cadeia.
+ */
+export function matchCertDer(scope) {
+  const m = /\/Cert\s*(\[|\(|<)/.exec(scope);
+  if (!m) return [];
+
+  let i = m.index + m[0].length - 1;
+
+  if (scope[i] !== '[') {
+    const r = lerStringPdf(scope, i);
+    return r ? [r.bytes] : [];
+  }
+
+  const out = [];
+  i++;
+  while (i < scope.length && scope[i] !== ']') {
+    if (scope[i] === '(' || scope[i] === '<') {
+      const r = lerStringPdf(scope, i);
+      if (!r) break;
+      out.push(r.bytes);
+      i = r.fim;
+      continue;
+    }
+    i++;
+  }
+  return out;
 }
 
 /** Texto de PDF: UTF-16BE se tiver BOM FE FF, senao PDFDocEncoding ~ latin1. */

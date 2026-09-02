@@ -9,13 +9,14 @@
 import { PdfDoc } from './pdfdoc.js';
 import { scanSignaturesFull, COBERTURA } from './pdfsig.js';
 import { readSignedData } from './cms.js';
+import { ehPkcs1, lerPkcs1 } from './pkcs1.js';
 import { extractIdentity, classifyIssuer } from './icpbrasil.js';
 import { verifySignerInfo, verifyTimestampImprint, checkValidity, sha256Hex } from './verify.js';
 import { validarCadeia } from './trust.js';
 import { CONTENT_TYPES } from './oid.js';
 import { extrairMetadados } from './pdfmeta.js';
 
-export const VERSAO = '1.1';
+export const VERSAO = '1.2';
 
 /**
  * @param {Uint8Array} bytes conteudo do PDF
@@ -105,78 +106,39 @@ async function analisarAssinatura(sig, indice, fileBytes) {
     erro: null,
   };
 
-  let signedData;
-  try {
-    signedData = readSignedData(sig.cms);
-  } catch (err) {
-    item.erro = `contêiner PKCS#7 ilegível: ${err.message}`;
-    item.diagnostico = {
-      codigo: 'PKCS7_ILEGIVEL',
-      titulo: 'Assinatura ilegível',
-      severidade: 'erro',
-    };
-    return item;
-  }
-
-  const signerInfo = signedData.signerInfos[0];
-  if (!signerInfo) {
-    item.erro = 'SignedData sem SignerInfo';
-    return item;
-  }
-
-  if (signedData.signerInfos.length > 1) {
-    item.cossignatarios = signedData.signerInfos.length;
-  }
-
-  const cert = signerInfo.signerCertificate;
   const signedBytes = sig.signedBytes(fileBytes);
 
-  item.cripto = await verifySignerInfo(signerInfo, signedBytes);
-  item.cripto.bytesConferidos = signedBytes.length;
-
-  // Estrutura crua, para o dump. Extraida de qualquer forma durante a analise;
-  // antes era descartada.
+  // Estrutura crua antes de qualquer leitura que possa falhar: se o conteiner
+  // for ilegivel, o dump ainda mostra onde a assinatura esta no arquivo.
   item.byteRange = sig.byteRange;
   item.contents = {
     inicio: sig.contentsStart,
     fim: sig.contentsEnd,
-    tamanhoCms: sig.cms.length,
+    tamanhoAssinatura: sig.cms.length,
   };
-  item.cms = {
-    versao: signedData.version,
-    algoritmosDigest: signedData.digestAlgorithms.map((a) => a.name ?? a.oid),
-    eContentType: CONTENT_TYPES[signedData.eContentType] ?? signedData.eContentType,
-    detached: signedData.detached,
-    crlsPresentes: signedData.crlsPresent,
-    totalCertificados: signedData.certificates.length,
-    totalSignerInfos: signedData.signerInfos.length,
-    identificacaoSignatario: signerInfo.sidType,
-    signedAttrs: signerInfo.signedAttrs.map((a) => a.name ?? a.oid),
-    unsignedAttrs: signerInfo.unsignedAttrs.map((a) => a.name ?? a.oid),
-  };
-  item.datas.signingTimeAtributo = iso(signerInfo.signingTime);
 
-  const tst = signerInfo.timeStampToken;
-  if (tst) {
-    item.datas.carimboDoTempo = {
-      genTime: iso(tst.genTime),
-      tsa: tst.tsaName,
-      tsaSubject: tst.tsaSubject,
-      serie: tst.serialHex,
-      politica: tst.policy,
-      imprintAlgoritmo: tst.imprintAlgorithm,
-      imprintHash: tst.imprintHash,
-      confereComEstaAssinatura: await verifyTimestampImprint(tst, signerInfo.signature),
-    };
+  const leitura = ehPkcs1(sig.subFilter)
+    ? await lerPkcs1(sig, signedBytes)
+    : await lerCms(sig, signedBytes);
+
+  if (leitura.erro) {
+    item.erro = leitura.erro;
+    item.diagnostico = leitura.diagnostico ?? null;
+    return item;
   }
 
-  if (sig.sigType === 'DocTimeStamp' && signedData.eContent) {
-    item.datas.carimboDeDocumento = true;
-  }
+  const { cert, certificados } = leitura;
+
+  item.formato = leitura.formato;
+  item.cripto = leitura.cripto;
+  item.cripto.bytesConferidos = signedBytes.length;
+  if (leitura.cms) item.cms = leitura.cms;
+  if (leitura.cossignatarios > 1) item.cossignatarios = leitura.cossignatarios;
+  Object.assign(item.datas, leitura.datas);
 
   const dataReferencia =
     dateOf(item.datas.carimboDoTempo?.genTime) ??
-    signerInfo.signingTime ??
+    leitura.signingTime ??
     sig.dictDate ??
     null;
 
@@ -226,7 +188,7 @@ async function analisarAssinatura(sig, indice, fileBytes) {
 
   item.datas.confiabilidade = avaliarData(item.datas, cert);
 
-  item.cadeia = signedData.certificates.map((c) => ({
+  item.cadeia = certificados.map((c) => ({
     commonName: c.commonName,
     subject: c.subjectHumanFriendly,
     issuer: c.issuerHumanFriendly,
@@ -238,11 +200,74 @@ async function analisarAssinatura(sig, indice, fileBytes) {
   }));
 
   // Cadeia de confianca: ancoras embutidas, sem rede.
-  item.confianca = await validarCadeia(cert, signedData.certificates, dataReferencia);
+  item.confianca = await validarCadeia(cert, certificados, dataReferencia);
 
-  item.detached = signedData.detached;
+  item.detached = leitura.detached;
   item.diagnostico = diagnosticar(item);
   return item;
+}
+
+/** Caminho CMS: adbe.pkcs7.detached, ETSI.CAdES.detached, ETSI.RFC3161. */
+async function lerCms(sig, signedBytes) {
+  let signedData;
+  try {
+    signedData = readSignedData(sig.cms);
+  } catch (err) {
+    return {
+      erro: `contêiner PKCS#7 ilegível: ${err.message}`,
+      diagnostico: {
+        codigo: 'PKCS7_ILEGIVEL',
+        titulo: 'Assinatura ilegível',
+        severidade: 'erro',
+      },
+    };
+  }
+
+  const signerInfo = signedData.signerInfos[0];
+  if (!signerInfo) return { erro: 'SignedData sem SignerInfo' };
+
+  const datas = { signingTimeAtributo: iso(signerInfo.signingTime) };
+
+  const tst = signerInfo.timeStampToken;
+  if (tst) {
+    datas.carimboDoTempo = {
+      genTime: iso(tst.genTime),
+      tsa: tst.tsaName,
+      tsaSubject: tst.tsaSubject,
+      serie: tst.serialHex,
+      politica: tst.policy,
+      imprintAlgoritmo: tst.imprintAlgorithm,
+      imprintHash: tst.imprintHash,
+      confereComEstaAssinatura: await verifyTimestampImprint(tst, signerInfo.signature),
+    };
+  }
+
+  if (sig.sigType === 'DocTimeStamp' && signedData.eContent) {
+    datas.carimboDeDocumento = true;
+  }
+
+  return {
+    formato: 'CMS',
+    cert: signerInfo.signerCertificate,
+    certificados: signedData.certificates,
+    detached: signedData.detached,
+    cossignatarios: signedData.signerInfos.length,
+    signingTime: signerInfo.signingTime,
+    datas,
+    cripto: await verifySignerInfo(signerInfo, signedBytes),
+    cms: {
+      versao: signedData.version,
+      algoritmosDigest: signedData.digestAlgorithms.map((a) => a.name ?? a.oid),
+      eContentType: CONTENT_TYPES[signedData.eContentType] ?? signedData.eContentType,
+      detached: signedData.detached,
+      crlsPresentes: signedData.crlsPresent,
+      totalCertificados: signedData.certificates.length,
+      totalSignerInfos: signedData.signerInfos.length,
+      identificacaoSignatario: signerInfo.sidType,
+      signedAttrs: signerInfo.signedAttrs.map((a) => a.name ?? a.oid),
+      unsignedAttrs: signerInfo.unsignedAttrs.map((a) => a.name ?? a.oid),
+    },
+  };
 }
 
 /**
@@ -335,7 +360,7 @@ function fonteDaData(temAtributoAssinado) {
 function diagnosticar(item) {
   const c = item.cripto ?? {};
 
-  if (c.assinaturaOk === true && c.integro === true) {
+  if (c.assinaturaOk === true && c.integro !== false) {
     return { codigo: 'VALIDA', titulo: 'Assinatura válida' };
   }
 

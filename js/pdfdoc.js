@@ -4,7 +4,7 @@
  *
  * Existe por dois motivos, ambos de desempenho:
  *
- * 1. A decodificacao latin1 do arquivo inteiro era feita quatro vezes.
+ * 1. A decodificacao do arquivo inteiro era feita quatro vezes.
  *
  * 2. O indice de objetos usava a expressao `/(\d+)\s+(\d+)\s+obj\b/g`. Parece
  *    inocente, mas `\d+` faz backtracking: num PDF real ha longas corridas de
@@ -15,7 +15,7 @@
  *    mais rapido.
  */
 
-const LATIN1 = new TextDecoder('latin1');
+import { decodeLatin1 } from './latin1.js';
 
 /** Numero maximo de digitos aceitos num numero de objeto ou geracao. */
 const MAX_DIGITS = 10;
@@ -24,7 +24,7 @@ export class PdfDoc {
   /** @param {Uint8Array} bytes */
   constructor(bytes) {
     this.bytes = bytes;
-    this.text = LATIN1.decode(bytes);
+    this.text = decodeLatin1(bytes);
     this.objects = indexObjects(this.text);
 
     /** Ultima versao de cada numero de objeto entre os objetos nao comprimidos. */

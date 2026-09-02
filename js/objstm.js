@@ -13,7 +13,8 @@
  * silencio e o resto da analise continua valido.
  */
 
-const LATIN1 = new TextDecoder('latin1');
+import { decodeLatin1 } from './latin1.js';
+
 
 /**
  * Descomprime os object streams e preenche `doc.compressed`.
@@ -61,7 +62,7 @@ export async function loadObjectStreams(doc) {
       continue; // stream corrompido, cifrado ou filtro encadeado
     }
 
-    for (const [num, body] of splitObjStm(LATIN1.decode(inflated), n, first)) {
+    for (const [num, body] of splitObjStm(decodeLatin1(inflated), n, first)) {
       const previous = doc.compressed.get(num);
       if (!previous || previous.offset < obj.start) {
         doc.compressed.set(num, { body, offset: obj.start });

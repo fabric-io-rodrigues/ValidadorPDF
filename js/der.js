@@ -194,8 +194,10 @@ export function serialToHex(node) {
   return hex || '00';
 }
 
+import { decodeLatin1 } from './latin1.js';
+
 const UTF8 = new TextDecoder('utf-8');
-const LATIN1 = new TextDecoder('latin1');
+/* asn1crypto decodifica T61String e afins como ISO-8859-1 de verdade. */
 
 /** String ASN.1 respeitando o tag. BMPString e UTF-16BE. */
 export function decodeString(node) {
@@ -206,8 +208,8 @@ export function decodeString(node) {
     return s;
   }
   if (node.tagNo === TAG.UTF8_STRING) return UTF8.decode(c);
-  // PrintableString/IA5String sao ASCII; T61 e afins caem em latin1 sem perder byte.
-  return LATIN1.decode(c);
+  // PrintableString/IA5String sao ASCII; T61 e afins cabem em ISO-8859-1.
+  return decodeLatin1(c);
 }
 
 /**
@@ -215,7 +217,7 @@ export function decodeString(node) {
  * UTCTime tem ano de 2 digitos: >= 50 vira 19xx (RFC 5280 4.1.2.5.1).
  */
 export function decodeTime(node) {
-  const s = LATIN1.decode(node.content).trim();
+  const s = decodeLatin1(node.content).trim();
   const m = /^(\d{2}|\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?(?:[.,](\d+))?(Z|[+-]\d{4})?$/.exec(s);
   if (!m) return null;
 

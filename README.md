@@ -1,7 +1,7 @@
 # ValidadorPDF
 
 Verifica assinaturas digitais em PDF — ICP-Brasil, Gov.br, Adobe, Docusign,
-Clicksign, D4Sign, ZapSign — **no próprio dispositivo**. O arquivo não sai do
+Clicksign, D4Sign, ZapSign, SignNow — **no próprio dispositivo**. O arquivo não sai do
 navegador.
 
 **→ https://fabric-io-rodrigues.github.io/ValidadorPDF/**
@@ -26,7 +26,8 @@ JSON, imprimir.
 
 | | |
 |---|---|
-| **Integridade** | recalcula o hash da área coberta pelo `/ByteRange` e compara com o `messageDigest` assinado |
+| **Formatos** | `adbe.pkcs7.detached`, `ETSI.CAdES.detached`, `ETSI.RFC3161` e `adbe.x509.rsa_sha1` |
+| **Integridade** | recalcula o hash da área coberta pelo `/ByteRange` e compara com o `messageDigest` assinado; onde ele não existe, a assinatura incide direto sobre esses bytes |
 | **Autoria** | confere a assinatura contra a chave pública do certificado embutido (RSA e ECDSA, SHA-1 a SHA-512) |
 | **Cadeia** | verifica que cada certificado foi assinado pela autoridade seguinte, que os intermediários são ACs e que todos estavam vigentes |
 | **Identidade** | lê as extensões ICP-Brasil do certificado (CPF, nascimento, CNPJ, responsável) e confere os dígitos verificadores |
@@ -85,9 +86,11 @@ legítimo.
 | | |
 |---|---|
 | `js/der.js` | parser DER/BER (TLV), com suporte a comprimento indefinido |
+| `js/latin1.js` | decodificação byte a byte, que `TextDecoder('latin1')` não faz |
 | `js/oid.js` | tabelas de OID: DN, extensões, atributos CMS, algoritmos, ICP-Brasil |
 | `js/x509.js` | certificados X.509: DN, validade, extensões, SAN, SPKI |
 | `js/cms.js` | CMS/PKCS#7 SignedData, SignerInfo, carimbo RFC 3161 |
+| `js/pkcs1.js` | assinatura `adbe.x509.rsa_sha1`, sem contêiner CMS |
 | `js/pdfdoc.js` | índice do PDF, construído uma vez e compartilhado |
 | `js/pdfsig.js` | varredura das assinaturas e abrangência do `/ByteRange` |
 | `js/pdfmeta.js` | páginas, `/Info`, tamanho da página, versão, `/Encrypt` |
