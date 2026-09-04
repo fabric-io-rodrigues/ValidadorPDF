@@ -3,11 +3,19 @@
  *
  * Reproduz as duas perguntas que o pyHanko responde com `intact` e `valid`:
  *
- *   integro       o messageDigest declarado nos signedAttrs confere com o
- *                 SHA-x calculado sobre os bytes do /ByteRange, ou seja, o
- *                 documento nao mudou depois de assinado;
+ *   integro       o documento nao mudou depois de assinado;
  *   assinaturaOk  a assinatura sobre os signedAttrs confere com a chave
  *                 publica do certificado do signatario.
+ *
+ * O que `integro` compara depende de o CMS encapsular ou nao o conteudo. Numa
+ * assinatura detached (adbe.pkcs7.detached, ETSI.CAdES.detached) o
+ * `messageDigest` e o hash do proprio /ByteRange, e uma comparacao resolve.
+ *
+ * Num carimbo de documento (ETSI.RFC3161) o CMS carrega um eContent - a
+ * estrutura TSTInfo - e a regra do CMS e que o `messageDigest` e o hash do
+ * conteudo assinado, isto e, do TSTInfo. Quem liga o carimbo ao PDF e o
+ * `messageImprint` DENTRO do TSTInfo. Comparar o messageDigest com o
+ * /ByteRange nesse caso acusa divergencia em documento intacto.
  *
  * Um algoritmo nao suportado devolve status INDETERMINADO. Nunca INVALIDO:
  * relatorio forense que confunde "não sei verificar" com "adulterado" e pior
@@ -50,14 +58,17 @@ function bytesEqual(a, b) {
  * @param {SignerInfo} signerInfo
  * @param {Uint8Array} signedBytes conteudo apontado pelo /ByteRange
  */
-export async function verifySignerInfo(signerInfo, signedBytes) {
+export async function verifySignerInfo(signerInfo, signedBytes, eContent = null) {
   const result = {
     integro: null,
     assinaturaOk: null,
+    conteudoConfere: null,
     digestAlgoritmo: signerInfo.digestAlgorithm.name,
     assinaturaAlgoritmo: null,
     hashCalculado: null,
     hashDeclarado: null,
+    imprintCalculado: null,
+    imprintDeclarado: null,
     status: 'INDETERMINADO',
     observacoes: [],
   };
@@ -68,16 +79,23 @@ export async function verifySignerInfo(signerInfo, signedBytes) {
     return result;
   }
 
-  // ---- integridade: hash do /ByteRange x messageDigest declarado
+  // ---- integridade: hash do conteudo assinado x messageDigest declarado
+  const conteudo = eContent ?? signedBytes;
   const declared = signerInfo.messageDigest;
-  const calculated = await digestBytes(digestAlg, signedBytes);
+  const calculated = await digestBytes(digestAlg, conteudo);
   result.hashCalculado = toHex(calculated);
 
   if (declared) {
     result.hashDeclarado = toHex(declared);
-    result.integro = bytesEqual(declared, calculated);
-    if (!result.integro) {
-      result.observacoes.push('o hash do conteúdo não confere com o messageDigest assinado');
+    result.conteudoConfere = bytesEqual(declared, calculated);
+
+    // Sem eContent, o conteudo assinado E o documento: um teste responde as
+    // duas perguntas. Com eContent, quem responde por `integro` e o chamador,
+    // a partir do messageImprint.
+    if (!eContent) result.integro = result.conteudoConfere;
+
+    if (!result.conteudoConfere) {
+      result.observacoes.push('o hash do conteúdo assinado não confere com o messageDigest');
     }
   } else if (signerInfo.signedAttrs.length === 0) {
     // Sem signedAttrs a assinatura incide direto sobre o conteudo: a

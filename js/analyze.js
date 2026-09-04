@@ -8,15 +8,18 @@
 
 import { PdfDoc } from './pdfdoc.js';
 import { scanSignaturesFull, COBERTURA } from './pdfsig.js';
-import { readSignedData } from './cms.js';
+import { readSignedData, readTimeStampToken } from './cms.js';
 import { ehPkcs1, lerPkcs1 } from './pkcs1.js';
 import { extractIdentity, classifyIssuer } from './icpbrasil.js';
-import { verifySignerInfo, verifyTimestampImprint, checkValidity, sha256Hex } from './verify.js';
+import {
+  verifySignerInfo, verifyTimestampImprint, checkValidity, sha256Hex,
+  digestHex, consolidarStatus,
+} from './verify.js';
 import { validarCadeia } from './trust.js';
 import { CONTENT_TYPES } from './oid.js';
 import { extrairMetadados } from './pdfmeta.js';
 
-export const VERSAO = '1.2';
+export const VERSAO = '1.3';
 
 /**
  * @param {Uint8Array} bytes conteudo do PDF
@@ -226,6 +229,7 @@ async function lerCms(sig, signedBytes) {
   const signerInfo = signedData.signerInfos[0];
   if (!signerInfo) return { erro: 'SignedData sem SignerInfo' };
 
+  const cripto = await verifySignerInfo(signerInfo, signedBytes, signedData.eContent);
   const datas = { signingTimeAtributo: iso(signerInfo.signingTime) };
 
   const tst = signerInfo.timeStampToken;
@@ -242,8 +246,29 @@ async function lerCms(sig, signedBytes) {
     };
   }
 
+  // Carimbo de documento: o vinculo com o PDF esta no messageImprint do
+  // TSTInfo, nao no messageDigest. E ele que responde se o documento mudou.
   if (sig.sigType === 'DocTimeStamp' && signedData.eContent) {
-    datas.carimboDeDocumento = true;
+    const carimbo = readTimeStampToken(sig.cms);
+    cripto.integro = await verifyTimestampImprint(carimbo, signedBytes);
+    cripto.imprintDeclarado = carimbo.imprintHash;
+    cripto.imprintCalculado = await digestHex(carimbo.imprintAlgorithm, signedBytes);
+    cripto.status = consolidarStatus(cripto.integro, cripto.assinaturaOk);
+
+    if (cripto.integro === false) {
+      cripto.observacoes.push('o hash do documento não confere com o carimbo do tempo');
+    }
+
+    datas.carimboDeDocumento = {
+      genTime: iso(carimbo.genTime),
+      tsa: carimbo.tsaName,
+      tsaSubject: carimbo.tsaSubject,
+      serie: carimbo.serialHex,
+      politica: carimbo.policy,
+      imprintAlgoritmo: carimbo.imprintAlgorithm,
+      imprintHash: carimbo.imprintHash,
+      confereComODocumento: cripto.integro,
+    };
   }
 
   return {
@@ -254,7 +279,7 @@ async function lerCms(sig, signedBytes) {
     cossignatarios: signedData.signerInfos.length,
     signingTime: signerInfo.signingTime,
     datas,
-    cripto: await verifySignerInfo(signerInfo, signedBytes),
+    cripto,
     cms: {
       versao: signedData.version,
       algoritmosDigest: signedData.digestAlgorithms.map((a) => a.name ?? a.oid),
